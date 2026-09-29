@@ -1,0 +1,106 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    environment {
+        IMAGE_NAME = "ci-cd-api"
+        CONTAINER_NAME = "ci-cd-api"
+        APP_PORT = "8001"
+        COMMIT_HASH = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo "Checking out source code for commit: ${COMMIT_HASH}"
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    python3 -m venv .venv
+                    .venv/bin/pip install --upgrade pip
+                    .venv/bin/pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Automated Tests') {
+            steps {
+                echo 'Running Pytest test suite with verbose output...'
+                sh '.venv/bin/pytest -v'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo "Building Docker images with tags: ${BUILD_NUMBER} and ${COMMIT_HASH}..."
+                sh '''
+                    docker build \
+                      -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+                      -t ${IMAGE_NAME}:${COMMIT_HASH} \
+                      -t ${IMAGE_NAME}:latest .
+                '''
+            }
+        }
+
+        stage('Security Scan (Trivy)') {
+            steps {
+                echo 'Scanning container image for critical security vulnerabilities...'
+                sh '''
+                    if command -v trivy > /dev/null 2>&1; then
+                        trivy image --severity HIGH,CRITICAL --exit-code 0 ${IMAGE_NAME}:${BUILD_NUMBER}
+                    else
+                        echo "Trivy not installed on build agent. Skipping vulnerability scan."
+                    fi
+                '''
+            }
+        }
+
+        stage('Deploy with Rollback Protection') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo "Executing automated deployment via scripts/deploy.sh..."
+                sh '''
+                    chmod +x scripts/*.sh
+                    ./scripts/deploy.sh "${IMAGE_NAME}" "${BUILD_NUMBER}" "${CONTAINER_NAME}" "${APP_PORT}"
+                '''
+            }
+        }
+
+        stage('Health Validation') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo 'Executing deep health and endpoint validation...'
+                sh '''
+                    ./scripts/validate_deployment.sh "${CONTAINER_NAME}" "${APP_PORT}"
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "SUCCESS: Pipeline completed successfully for Build #${BUILD_NUMBER} (Commit: ${COMMIT_HASH})."
+        }
+
+        failure {
+            echo "FAILURE: Pipeline execution failed for Build #${BUILD_NUMBER}. Check console logs and deployment status."
+        }
+
+        always {
+            echo "CLEANUP: Build execution finished."
+        }
+    }
+}
