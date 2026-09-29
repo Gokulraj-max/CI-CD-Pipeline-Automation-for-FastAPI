@@ -55,28 +55,28 @@ This project automates each step of the delivery lifecycle:
 
 ```mermaid
 flowchart TD
-    subgraph Developer_Station ["Developer"]
-        Dev["Developer"] -->|Commit & Push| GH["GitHub Repository"]
+    subgraph DevStation ["Developer Workstation"]
+        Dev["Developer"] -->|Commit and Push| GH["GitHub Repository"]
     end
 
-    subgraph GitHub_Cloud ["GitHub"]
-        GH -->|Webhook Event (push)| JK["Jenkins Server"]
+    subgraph GitHubCloud ["GitHub Platform"]
+        GH -->|Webhook Push Event| JK["Jenkins Server"]
     end
 
-    subgraph Jenkins_Pipeline ["Jenkins Pipeline"]
+    subgraph JenkinsPipeline ["Jenkins CI/CD Pipeline"]
         JK --> S1["1. Checkout Source"]
-        S1 --> S2["2. Install Dependencies (venv)"]
-        S2 --> S3["3. Run Pytest"]
+        S1 --> S2["2. Install Dependencies"]
+        S2 --> S3["3. Run Pytest Suite"]
         S3 -->|Pass| S4["4. Build Docker Image"]
         S3 -->|Fail| FailNotify["Halt Pipeline & Report Failure"]
-        S4 --> S5["5. Deploy Container (main branch)"]
-        S5 --> S6["6. Health Check (15 retries)"]
-        S6 -->|Healthy| SuccessDone["Deployment Complete (Port 8001)"]
+        S4 --> S5["5. Deploy Container"]
+        S5 --> S6["6. Health Check"]
+        S6 -->|Healthy| SuccessDone["Deployment Active on Port 8001"]
         S6 -->|Unhealthy| FailDeploy["Halt & Preserve Stable State"]
     end
 
-    subgraph Target_Host ["Target Environment (Ubuntu / Docker)"]
-        SuccessDone -.-> RunningApp["FastAPI Container (ci-cd-api)"]
+    subgraph TargetHost ["Target Linux Host"]
+        SuccessDone -.-> RunningApp["FastAPI Container: ci-cd-api"]
     end
 ```
 
