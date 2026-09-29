@@ -328,11 +328,3 @@ The `scripts/` directory provides essential automation:
 
 ---
 
-## 15. Resume Description
-
-```text
-CI/CD Pipeline Automation for FastAPI | Jenkins, GitHub, Docker, Python, Pytest, Linux, Bash
-• Developed a Jenkins CI/CD pipeline integrated with GitHub to automate source code checkout, dependency installation, automated testing and Docker image creation.
-• Automated application deployment to a Linux environment using Docker and Bash scripts, with health checks to validate deployment status.
-• Implemented pipeline failure handling, application validation and container management to improve deployment consistency and reliability.
-```
